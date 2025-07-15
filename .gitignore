@@ -115,6 +115,12 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+postgres_data/
+redis_data/
+*.sql.backup
+*.dump
+*.rdb
+*.aof
 
 # 缓存目录
 cache/

@@ -263,12 +263,16 @@ generate_secrets() {
         JVB_AUTH_PASSWORD=$(openssl rand -hex 16)
         JIBRI_RECORDER_PASSWORD=$(openssl rand -hex 16)
         JIBRI_XMPP_PASSWORD=$(openssl rand -hex 16)
+        POSTGRES_PASSWORD=$(openssl rand -hex 16)
+        REDIS_PASSWORD=$(openssl rand -hex 16)
         
         sed -i "s/JICOFO_COMPONENT_SECRET=.*/JICOFO_COMPONENT_SECRET=$JICOFO_COMPONENT_SECRET/" .env
         sed -i "s/JICOFO_AUTH_PASSWORD=.*/JICOFO_AUTH_PASSWORD=$JICOFO_AUTH_PASSWORD/" .env
         sed -i "s/JVB_AUTH_PASSWORD=.*/JVB_AUTH_PASSWORD=$JVB_AUTH_PASSWORD/" .env
         sed -i "s/JIBRI_RECORDER_PASSWORD=.*/JIBRI_RECORDER_PASSWORD=$JIBRI_RECORDER_PASSWORD/" .env
         sed -i "s/JIBRI_XMPP_PASSWORD=.*/JIBRI_XMPP_PASSWORD=$JIBRI_XMPP_PASSWORD/" .env
+        sed -i "s/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/" .env
+        sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=$REDIS_PASSWORD/" .env
         
         log_success "安全密钥生成完成"
     else
