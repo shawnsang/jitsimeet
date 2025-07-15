@@ -1,0 +1,197 @@
+# Uptime Kuma 监控配置
+# 此文件用于配置监控规则和自动重启策略
+
+# 监控配置
+monitoring:
+  # 基本设置
+  settings:
+    check_interval: 60  # 检查间隔（秒）
+    timeout: 30         # 超时时间（秒）
+    retries: 3          # 重试次数
+    
+  # 监控目标
+  targets:
+    # Jitsi Meet 主服务
+    - name: "Jitsi Meet Web"
+      type: "http"
+      url: "https://meet.yourdomain.com"
+      method: "GET"
+      expected_status: [200, 301, 302]
+      check_interval: 60
+      timeout: 30
+      
+    # Jitsi Meet API
+    - name: "Jitsi Meet API"
+      type: "http"
+      url: "https://meet.yourdomain.com/http-bind"
+      method: "GET"
+      expected_status: [200, 400, 404]  # API可能返回这些状态码
+      check_interval: 120
+      timeout: 30
+      
+    # WebSocket 连接
+    - name: "Jitsi WebSocket"
+      type: "http"
+      url: "https://meet.yourdomain.com/xmpp-websocket"
+      method: "GET"
+      expected_status: [200, 400, 426]  # WebSocket升级请求
+      check_interval: 300
+      timeout: 30
+      
+    # JVB UDP 端口
+    - name: "JVB UDP Port"
+      type: "port"
+      hostname: "localhost"
+      port: 10000
+      check_interval: 300
+      timeout: 10
+      
+    # JVB TCP 端口
+    - name: "JVB TCP Port"
+      type: "port"
+      hostname: "localhost"
+      port: 4443
+      check_interval: 300
+      timeout: 10
+      
+    # Docker 容器状态
+    - name: "Jitsi Web Container"
+      type: "docker"
+      container: "jitsi-meet-web-1"
+      check_interval: 120
+      
+    - name: "Jitsi Prosody Container"
+      type: "docker"
+      container: "jitsi-meet-prosody-1"
+      check_interval: 120
+      
+    - name: "Jitsi Jicofo Container"
+      type: "docker"
+      container: "jitsi-meet-jicofo-1"
+      check_interval: 120
+      
+    - name: "Jitsi JVB Container"
+      type: "docker"
+      container: "jitsi-meet-jvb-1"
+      check_interval: 120
+
+# 告警配置
+alerts:
+  # 邮件告警
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    smtp_user: "your-email@gmail.com"
+    smtp_password: "your-app-password"
+    from: "your-email@gmail.com"
+    to: ["admin@yourdomain.com"]
+    
+  # Webhook 告警
+  webhook:
+    enabled: false
+    url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    
+  # 企业微信告警
+  wechat:
+    enabled: false
+    webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+
+# 自动恢复配置
+auto_recovery:
+  enabled: true
+  
+  # 重启策略
+  restart_policies:
+    # 容器重启
+    - name: "Container Restart"
+      trigger:
+        - "Jitsi Web Container"
+        - "Jitsi Prosody Container"
+        - "Jitsi Jicofo Container"
+        - "Jitsi JVB Container"
+      action: "restart_container"
+      max_attempts: 3
+      cooldown: 300  # 5分钟冷却期
+      
+    # 服务重启
+    - name: "Service Restart"
+      trigger:
+        - "Jitsi Meet Web"
+        - "Jitsi Meet API"
+      action: "restart_service"
+      max_attempts: 2
+      cooldown: 600  # 10分钟冷却期
+      
+    # 系统重启（最后手段）
+    - name: "System Restart"
+      trigger:
+        - "multiple_failures"  # 多个服务同时失败
+      action: "restart_system"
+      max_attempts: 1
+      cooldown: 3600  # 1小时冷却期
+      conditions:
+        min_failures: 3
+        time_window: 1800  # 30分钟内
+
+# 性能监控
+performance:
+  # 资源使用监控
+  resources:
+    # CPU 使用率
+    cpu:
+      warning_threshold: 70
+      critical_threshold: 90
+      check_interval: 60
+      
+    # 内存使用率
+    memory:
+      warning_threshold: 80
+      critical_threshold: 95
+      check_interval: 60
+      
+    # 磁盘使用率
+    disk:
+      warning_threshold: 80
+      critical_threshold: 90
+      check_interval: 300
+      
+    # 网络连接数
+    network:
+      max_connections: 1000
+      check_interval: 120
+
+# 日志配置
+logging:
+  level: "info"
+  file: "/app/data/logs/monitoring.log"
+  max_size: "100MB"
+  max_files: 10
+  
+  # 日志轮转
+  rotation:
+    enabled: true
+    interval: "daily"
+    compress: true
+
+# 报告配置
+reports:
+  # 每日报告
+  daily:
+    enabled: true
+    time: "09:00"
+    recipients: ["admin@yourdomain.com"]
+    
+  # 每周报告
+  weekly:
+    enabled: true
+    day: "monday"
+    time: "09:00"
+    recipients: ["admin@yourdomain.com"]
+    
+  # 月度报告
+  monthly:
+    enabled: true
+    day: 1
+    time: "09:00"
+    recipients: ["admin@yourdomain.com"]
