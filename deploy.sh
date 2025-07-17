@@ -94,13 +94,17 @@ check_ssl_certificates() {
     
     if [[ ! -f "$cert_path" ]]; then
         log_warning "SSL certificate not found: $cert_path"
-        log_info "Use ./generate-ssl.sh to generate SSL certificates"
+        log_info "Generate SSL certificates using one of these methods:"
+        log_info "  - Self-signed: ./generate-ssl.sh -d your-domain.com -t self-signed"
+        log_info "  - Let's Encrypt: ./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt"
         return 1
     fi
     
     if [[ ! -f "$key_path" ]]; then
         log_warning "SSL private key not found: $key_path"
-        log_info "Use ./generate-ssl.sh to generate SSL certificates"
+        log_info "Generate SSL certificates using one of these methods:"
+        log_info "  - Self-signed: ./generate-ssl.sh -d your-domain.com -t self-signed"
+        log_info "  - Let's Encrypt: ./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt"
         return 1
     fi
     
@@ -192,6 +196,10 @@ check_env_file() {
     else
         log_warning "SSL certificate paths not configured in .env file"
         log_info "Configure SSL_CERT_PATH and SSL_KEY_PATH for HTTPS support"
+        log_info "Available certificate options:"
+        log_info "  - Let's Encrypt: /etc/letsencrypt/live/your-domain.com/fullchain.pem"
+        log_info "  - Local generated: ./ssl/fullchain.pem (use ./generate-ssl.sh)"
+        log_info "  - Custom path: /path/to/your/fullchain.pem"
     fi
 }
 
@@ -248,13 +256,11 @@ configure_domain() {
     fi
     
     # 更新 .env 文件
-    sed -i "s|PUBLIC_URL=.*|PUBLIC_URL=https://$DOMAIN|g" .env
+    sed -i "s|PUBLIC_URL=.*|PUBLIC_URL=$DOMAIN|g" .env
     sed -i "s/DOCKER_HOST_ADDRESS=.*/DOCKER_HOST_ADDRESS=$SERVER_IP/g" .env
     
-    # 更新 nginx 配置
-    sed -i "s/meet.yourdomain.com/$DOMAIN/g" nginx.conf
-    
     log_success "域名和IP配置完成"
+    log_info "请确保DNS记录已正确配置，将 $DOMAIN 指向 $SERVER_IP"
 }
 
 # 启动服务

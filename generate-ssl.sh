@@ -109,11 +109,14 @@ generate_self_signed_cert() {
     
     log_info "为域名 ${domain} 生成自签名证书..."
     
+    # 创建证书目录
+    mkdir -p "${SSL_DIR}"
+    
     # 生成私钥
-    openssl genrsa -out ssl/key.pem 2048
+    openssl genrsa -out "${SSL_DIR}/privkey.pem" 2048
     
     # 生成证书签名请求配置
-    cat > ssl/cert.conf << EOF
+    cat > "${SSL_DIR}/cert.conf" << EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -139,16 +142,16 @@ IP.1 = 127.0.0.1
 EOF
     
     # 生成自签名证书
-    openssl req -new -x509 -key ssl/key.pem -out ssl/cert.pem -days 365 -config ssl/cert.conf -extensions v3_req
+    openssl req -new -x509 -key "${SSL_DIR}/privkey.pem" -out "${SSL_DIR}/fullchain.pem" -days 365 -config "${SSL_DIR}/cert.conf" -extensions v3_req
     
     # 清理临时文件
-    rm ssl/cert.conf
+    rm "${SSL_DIR}/cert.conf"
     
     log_success "自签名证书生成完成"
     log_warning "注意：自签名证书仅供测试使用，浏览器会显示安全警告"
     log_info "证书文件位置："
-    log_info "  - 私钥：ssl/key.pem"
-    log_info "  - 证书：ssl/cert.pem"
+    log_info "  - 私钥：${SSL_DIR}/privkey.pem"
+    log_info "  - 证书：${SSL_DIR}/fullchain.pem"
 }
 
 # 生成Let's Encrypt证书（使用certbot）
@@ -173,9 +176,9 @@ generate_letsencrypt_cert() {
         -d "${domain}"
     
     # 复制证书到ssl目录
-    sudo cp "/etc/letsencrypt/live/${domain}/fullchain.pem" ssl/cert.pem
-    sudo cp "/etc/letsencrypt/live/${domain}/privkey.pem" ssl/key.pem
-    sudo chown $(whoami):$(whoami) ssl/cert.pem ssl/key.pem
+    sudo cp "/etc/letsencrypt/live/${domain}/fullchain.pem" "${SSL_DIR}/fullchain.pem"
+    sudo cp "/etc/letsencrypt/live/${domain}/privkey.pem" "${SSL_DIR}/privkey.pem"
+    sudo chown $(whoami):$(whoami) "${SSL_DIR}/fullchain.pem" "${SSL_DIR}/privkey.pem"
     
     log_success "Let's Encrypt证书申请完成"
     log_info "证书将在90天后过期，请设置自动续期"
@@ -285,13 +288,13 @@ main() {
     
     # Check certificate validity only
     if [[ "$CHECK_ONLY" == true ]]; then
-        check_cert_validity "$SSL_DIR/cert.pem" "$RENEW_DAYS"
+        check_cert_validity "$SSL_DIR/fullchain.pem" "$RENEW_DAYS"
         exit $?
     fi
     
     # Show certificate information only
     if [[ "$INFO_ONLY" == true ]]; then
-        get_cert_info "$SSL_DIR/cert.pem"
+        get_cert_info "$SSL_DIR/fullchain.pem"
         exit $?
     fi
     
