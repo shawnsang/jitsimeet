@@ -61,6 +61,71 @@ check_dependencies() {
     log_success "依赖检查完成"
 }
 
+# Validate domain name format
+validate_domain() {
+    local domain="$1"
+    if [[ ! "$domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Validate IP address format
+validate_ip() {
+    local ip="$1"
+    if [[ ! "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        return 1
+    fi
+    
+    # Check each octet is between 0-255
+    IFS='.' read -ra ADDR <<< "$ip"
+    for i in "${ADDR[@]}"; do
+        if [[ $i -gt 255 ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+# Check SSL certificate files
+check_ssl_certificates() {
+    local cert_path="$1"
+    local key_path="$2"
+    
+    if [[ ! -f "$cert_path" ]]; then
+        log_warning "SSL certificate not found: $cert_path"
+        log_info "Use ./generate-ssl.sh to generate SSL certificates"
+        return 1
+    fi
+    
+    if [[ ! -f "$key_path" ]]; then
+        log_warning "SSL private key not found: $key_path"
+        log_info "Use ./generate-ssl.sh to generate SSL certificates"
+        return 1
+    fi
+    
+    # Check certificate validity (if openssl is available)
+    if command -v openssl >/dev/null 2>&1; then
+        local expiry_date=$(openssl x509 -enddate -noout -in "$cert_path" 2>/dev/null | cut -d= -f2)
+        if [[ -n "$expiry_date" ]]; then
+            local expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || echo "0")
+            local current_epoch=$(date +%s)
+            local days_until_expiry=$(( (expiry_epoch - current_epoch) / 86400 ))
+            
+            if [[ $days_until_expiry -le 0 ]]; then
+                log_warning "SSL certificate has expired: $cert_path"
+                return 2
+            elif [[ $days_until_expiry -le 30 ]]; then
+                log_warning "SSL certificate expires in $days_until_expiry days: $cert_path"
+            else
+                log_success "SSL certificate is valid for $days_until_expiry days"
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
 # 检查环境配置文件
 check_env_file() {
     if [ ! -f ".env" ]; then
@@ -76,6 +141,9 @@ check_env_file() {
         exit 1
     fi
     
+    # Load environment variables
+    source .env
+    
     # 检查是否还有未配置的占位符
     if grep -q "your-domain.com\|192.168.1.100\|CHANGE_ME" ".env"; then
         log_warning "检测到 .env 文件中还有未配置的占位符"
@@ -90,6 +158,40 @@ check_env_file() {
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
         fi
+    fi
+    
+    # Validate domain format if PUBLIC_URL is set
+    if [[ -n "$PUBLIC_URL" ]]; then
+        # Extract domain from URL
+        local domain=$(echo "$PUBLIC_URL" | sed 's|https\?://||' | sed 's|/.*||')
+        if ! validate_domain "$domain"; then
+            log_error "Invalid domain format in PUBLIC_URL: $domain"
+            log_info "Please provide a valid domain name (e.g., meet.example.com)"
+            exit 1
+        fi
+    fi
+    
+    # Validate IP address format if DOCKER_HOST_ADDRESS is set
+    if [[ -n "$DOCKER_HOST_ADDRESS" ]]; then
+        if ! validate_ip "$DOCKER_HOST_ADDRESS"; then
+            log_error "Invalid IP address format: $DOCKER_HOST_ADDRESS"
+            log_info "Please provide a valid IPv4 address (e.g., 192.168.1.100)"
+            exit 1
+        fi
+    fi
+    
+    # Check SSL certificates if paths are provided
+    if [[ -n "$SSL_CERT_PATH" ]] && [[ -n "$SSL_KEY_PATH" ]]; then
+        check_ssl_certificates "$SSL_CERT_PATH" "$SSL_KEY_PATH"
+        ssl_check_result=$?
+        if [[ $ssl_check_result -eq 1 ]]; then
+            log_warning "SSL certificates not found. HTTPS will not work properly."
+        elif [[ $ssl_check_result -eq 2 ]]; then
+            log_warning "SSL certificate has expired. Please renew it."
+        fi
+    else
+        log_warning "SSL certificate paths not configured in .env file"
+        log_info "Configure SSL_CERT_PATH and SSL_KEY_PATH for HTTPS support"
     fi
 }
 

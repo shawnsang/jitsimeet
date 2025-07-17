@@ -9,6 +9,53 @@
 - **自动监控**：集成 Uptime Kuma 监控和自动重启功能
 - **安全可靠**：Nginx 反向代理 + SSL 证书保障安全
 
+## 项目结构
+
+### 📁 核心文件结构
+
+```
+jistimeet/
+├── .env.development          # 开发环境配置模板
+├── .env.example              # 环境配置示例文件
+├── .gitignore                # Git 忽略文件配置
+├── README.md                 # 项目说明文档
+├── auth-config.lua           # Jitsi 认证配置
+├── deploy.sh                 # 部署脚本
+├── docker-compose.yml        # Docker 容器编排配置
+├── generate-ssl.sh           # SSL 证书生成和管理脚本
+├── health-check.sh           # 系统健康检查脚本
+├── maintenance.sh            # 自动化维护脚本
+└── nginx.conf                # Nginx 反向代理配置
+```
+
+### 📋 文件说明
+
+**🔧 配置文件**
+- **`.env.development`** - 开发环境配置模板，包含调试设置
+- **`.env.example`** - 通用环境配置示例，支持多种部署场景
+- **`docker-compose.yml`** - Docker 服务编排，定义所有必需的容器
+- **`nginx.conf`** - Nginx 配置，包含 SSL、安全头和性能优化
+- **`auth-config.lua`** - Jitsi 认证逻辑，支持公开和私有房间
+
+**🚀 部署和管理脚本**
+- **`deploy.sh`** - 主部署脚本，包含环境验证和服务启动
+- **`generate-ssl.sh`** - SSL 证书管理，支持自签名和 Let's Encrypt
+- **`health-check.sh`** - 系统监控，检查服务状态和资源使用
+- **`maintenance.sh`** - 自动化维护，包含备份、清理和优化
+
+### 🗂️ 运行时目录（自动创建）
+
+以下目录在运行时自动创建，已在 `.gitignore` 中排除：
+
+```
+jistimeet/
+├── ssl/                      # SSL 证书存储
+├── logs/                     # 日志文件
+├── backups/                  # 配置备份
+├── config/                   # 运行时配置
+└── monitoring-data/          # 监控数据
+```
+
 ## 系统架构
 
 本部署方案采用容器化架构，专为小团队（50人以下）优化，包含以下核心服务：
@@ -123,10 +170,18 @@ cd /opt/jitsi-meet
 # 将所有配置文件上传到此目录
 ```
 
-### 3. 配置环境变量
+### 3. 选择环境配置模板
+
+根据你的部署环境选择合适的配置模板：
 
 ```bash
-# 复制环境变量模板
+# 开发环境
+cp .env.development .env
+
+# 生产环境
+cp .env.production .env
+
+# 或使用默认模板
 cp .env.example .env
 
 # 编辑配置文件
@@ -149,12 +204,20 @@ chmod +x deploy.sh auto-restart.sh
 
 ### 5. 配置 SSL 证书
 
+使用提供的脚本生成SSL证书：
+
 ```bash
 # 生成自签名证书（测试用）
-./generate-ssl.sh self-signed your-domain.com
+./generate-ssl.sh -d your-domain.com -t self-signed
 
-# 或申请Let's Encrypt证书（生产用）
-./generate-ssl.sh letsencrypt your-domain.com your-email@example.com
+# 申请Let's Encrypt证书（生产环境推荐）
+./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt
+
+# 检查证书有效性
+./generate-ssl.sh -d your-domain.com -c
+
+# 自动续期Let's Encrypt证书
+./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt -a
 
 # 或者手动配置
 sudo certbot --nginx -d meet.yourdomain.com
@@ -366,6 +429,85 @@ end
 ./deploy.sh backup
 ```
 
+## 系统监控和维护
+
+### 健康检查
+使用内置的健康检查脚本监控系统状态：
+
+```bash
+# 完整健康检查
+./health-check.sh
+
+# 快速检查（仅检查容器状态）
+./health-check.sh -q
+
+# 生成详细报告
+./health-check.sh -r
+
+# 设置检查超时时间
+./health-check.sh -t 60
+```
+
+### 系统维护
+使用维护脚本进行系统维护：
+
+```bash
+# 创建配置备份
+./maintenance.sh backup
+
+# 从备份恢复配置
+./maintenance.sh restore
+
+# 清理日志和旧备份
+./maintenance.sh cleanup
+
+# Docker系统清理
+./maintenance.sh docker-cleanup
+
+# SSL证书续期检查
+./maintenance.sh ssl-check
+
+# 系统更新检查
+./maintenance.sh update-check
+
+# 性能优化
+./maintenance.sh optimize
+
+# 查看维护状态
+./maintenance.sh status
+
+# 执行完整维护
+./maintenance.sh full
+```
+
+### 自动化维护
+设置定时任务进行自动维护：
+
+```bash
+# 编辑crontab
+crontab -e
+
+# 添加以下任务：
+# 每天凌晨2点执行健康检查
+0 2 * * * /path/to/jitsi-meet/health-check.sh -q >> /var/log/jitsi-health.log 2>&1
+
+# 每周日凌晨3点执行完整维护
+0 3 * * 0 /path/to/jitsi-meet/maintenance.sh full >> /var/log/jitsi-maintenance.log 2>&1
+
+# 每月1号检查SSL证书
+0 4 1 * * /path/to/jitsi-meet/maintenance.sh ssl-check >> /var/log/jitsi-ssl.log 2>&1
+```
+
+### 监控指标
+系统会自动监控以下指标：
+
+- **系统资源**：CPU、内存、磁盘使用率
+- **容器状态**：所有Jitsi Meet服务的运行状态
+- **SSL证书**：证书有效期和到期提醒
+- **服务连通性**：HTTPS端点和监控服务可访问性
+- **日志文件**：日志大小和清理状态
+- **Docker资源**：镜像、容器、卷的使用情况
+
 ## 故障排除
 
 ### 常见问题
@@ -377,6 +519,9 @@ end
    
    # 检查日志
    ./deploy.sh logs web
+   
+   # 运行健康检查
+   ./health-check.sh
    ```
 
 2. **SSL 证书问题**
@@ -386,6 +531,9 @@ end
    
    # 检查证书状态
    sudo certbot certificates
+   
+   # 使用维护脚本检查
+   ./maintenance.sh ssl-check
    ```
 
 3. **音视频连接问题**
@@ -395,6 +543,21 @@ end
    
    # 检查防火墙设置
    sudo ufw status
+   
+   # 查看JVB日志
+   docker logs jitsi_jvb
+   ```
+
+4. **性能问题**
+   ```bash
+   # 运行性能优化
+   ./maintenance.sh optimize
+   
+   # 检查系统资源
+   ./health-check.sh
+   
+   # 清理Docker系统
+   ./maintenance.sh docker-cleanup
    ```
 
 ### 端口配置
