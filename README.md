@@ -582,6 +582,47 @@ crontab -e
    ./maintenance.sh docker-cleanup
    ```
 
+### Docker Compose 诊断命令
+
+如果遇到问题，可以使用以下命令进行诊断：
+
+```bash
+# 查看所有服务状态
+docker-compose ps
+
+# 查看特定服务日志
+docker-compose logs web
+docker-compose logs prosody
+docker-compose logs jicofo
+docker-compose logs jvb
+docker-compose logs nginx
+
+# 重启特定服务
+docker-compose restart web
+docker-compose restart nginx
+
+# 完全重建服务
+docker-compose down
+docker-compose up -d --build
+```
+
+#### Nginx 相关问题
+
+**Nginx 启动失败**
+- 检查 `.env` 文件中的 `SSL_CERT_PATH` 和 `SSL_KEY_PATH` 是否正确
+- 确保 SSL 证书文件存在且可读
+- 查看 nginx 日志：`docker-compose logs nginx`
+
+**SSL 证书问题**
+- 验证证书有效性：`./generate-ssl.sh -c`
+- 重新生成证书：`./generate-ssl.sh`
+- 检查域名 DNS 解析是否正确
+
+**环境变量模板问题**
+- 确保 `.env` 文件包含所有必需的变量
+- 检查 nginx.conf.template 是否正确替换变量
+- 验证生成的 nginx.conf 文件内容
+
 ### 端口配置
 
 确保以下端口开放：
