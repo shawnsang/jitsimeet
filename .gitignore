@@ -111,16 +111,12 @@ local-settings/
 test-results/
 coverage/
 
-# 数据库文件（如果使用本地数据库）
-*.db
-*.sqlite
-*.sqlite3
-postgres_data/
-redis_data/
-*.sql.backup
-*.dump
-*.rdb
-*.aof
+# SSL证书文件
+ssl/
+*.pem
+*.crt
+*.key
+*.csr
 
 # 缓存目录
 cache/

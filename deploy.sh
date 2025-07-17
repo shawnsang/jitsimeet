@@ -83,7 +83,6 @@ check_env_file() {
         echo "- PUBLIC_URL: 设置为您的域名"
         echo "- DOCKER_HOST_ADDRESS: 设置为您的服务器IP地址"
         echo "- 安全密钥: 运行 './deploy.sh init' 自动生成"
-        echo "- 数据库密码: 运行 './deploy.sh init' 自动生成"
         grep -n "your-domain.com\|192.168.1.100\|CHANGE_ME" ".env" || true
         echo
         read -p "是否继续？(y/N): " -n 1 -r
@@ -116,8 +115,6 @@ init_config() {
         JVB_AUTH_PASSWORD=$(generate_password)
         JIBRI_RECORDER_PASSWORD=$(generate_password)
         JIBRI_XMPP_PASSWORD=$(generate_password)
-        POSTGRES_PASSWORD=$(generate_password)
-        REDIS_PASSWORD=$(generate_password)
         
         # 更新.env文件
         sed -i "s/JICOFO_COMPONENT_SECRET=.*/JICOFO_COMPONENT_SECRET=${JICOFO_COMPONENT_SECRET}/" ".env"
@@ -125,8 +122,6 @@ init_config() {
         sed -i "s/JVB_AUTH_PASSWORD=.*/JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}/" ".env"
         sed -i "s/JIBRI_RECORDER_PASSWORD=.*/JIBRI_RECORDER_PASSWORD=${JIBRI_RECORDER_PASSWORD}/" ".env"
         sed -i "s/JIBRI_XMPP_PASSWORD=.*/JIBRI_XMPP_PASSWORD=${JIBRI_XMPP_PASSWORD}/" ".env"
-        sed -i "s/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" ".env"
-        sed -i "s/REDIS_PASSWORD=.*/REDIS_PASSWORD=${REDIS_PASSWORD}/" ".env"
         
         log_success "安全密钥已生成"
     fi

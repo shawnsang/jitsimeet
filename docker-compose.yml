@@ -1,88 +1,22 @@
 services:
-    # Nginx 负载均衡和反向代理
-    nginx:
-        image: nginx:alpine
-        restart: unless-stopped
-        ports:
-            - '80:80'
-            - '443:443'
-        volumes:
-            - ./nginx.conf:/etc/nginx/nginx.conf:ro
-            - ./ssl:/etc/nginx/ssl:ro
-            - /var/log/nginx:/var/log/nginx
-        depends_on:
-            - web
-        networks:
-            - meet.jitsi
-        healthcheck:
-            test: ["CMD", "nginx", "-t"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 40s
-        deploy:
-            resources:
-                limits:
-                    cpus: '0.5'
-                    memory: 256M
-                reservations:
-                    cpus: '0.1'
-                    memory: 128M
+  nginx:
+    # Nginx 反向代理和 HTTPS 终端
+    image: nginx:alpine
+    container_name: jitsi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+    networks:
+      - jitsi-network
 
-    # PostgreSQL 数据库 - 用于持久化存储
-    postgres:
-        image: postgres:15-alpine
-        restart: unless-stopped
-        environment:
-            - POSTGRES_DB=jitsi
-            - POSTGRES_USER=jitsi
-            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-            - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-        networks:
-            - meet.jitsi
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U jitsi"]
-            interval: 30s
-            timeout: 10s
-            retries: 5
-            start_period: 30s
-        deploy:
-            resources:
-                limits:
-                    cpus: '1.0'
-                    memory: 512M
-                reservations:
-                    cpus: '0.2'
-                    memory: 256M
-
-    # Redis 缓存 - 用于会话管理和缓存
-    redis:
-        image: redis:7-alpine
-        restart: unless-stopped
-        command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
-        volumes:
-            - redis_data:/data
-        networks:
-            - meet.jitsi
-        healthcheck:
-            test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 30s
-        deploy:
-            resources:
-                limits:
-                    cpus: '0.5'
-                    memory: 256M
-                reservations:
-                    cpus: '0.1'
-                    memory: 128M
-
+  web:
     # Jitsi Meet Web 前端服务
-    web:
         image: jitsi/web:stable
         restart: unless-stopped
         ports:
@@ -119,40 +53,10 @@ services:
             - JICOFO_AUTH_USER=focus
             - NGINX_WORKER_PROCESSES=auto
             - NGINX_WORKER_CONNECTIONS=1024
-            # 数据库连接配置
-            - DB_TYPE=postgresql
-            - DB_HOST=postgres
-            - DB_PORT=5432
-            - DB_NAME=jitsi
-            - DB_USER=jitsi
-            - DB_PASSWORD=${POSTGRES_PASSWORD}
-            # Redis连接配置
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
-            - REDIS_PASSWORD=${REDIS_PASSWORD}
         depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
-            prosody:
-                condition: service_healthy
+            - prosody
         networks:
             - meet.jitsi
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:80/"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-        deploy:
-            resources:
-                limits:
-                    cpus: '1.0'
-                    memory: 1G
-                reservations:
-                    cpus: '0.2'
-                    memory: 512M:
 
     # XMPP server
     prosody:
@@ -190,34 +94,10 @@ services:
             - ENABLE_RECORDING
             - TZ=Asia/Shanghai
             - PUBLIC_URL
-            # 数据库连接配置
-            - DB_TYPE=postgresql
-            - DB_HOST=postgres
-            - DB_PORT=5432
-            - DB_NAME=jitsi
-            - DB_USER=jitsi
-            - DB_PASSWORD=${POSTGRES_PASSWORD}
-        depends_on:
-            postgres:
-                condition: service_healthy
         networks:
             meet.jitsi:
                 aliases:
                     - ${XMPP_DOMAIN}
-        healthcheck:
-            test: ["CMD-SHELL", "prosodyctl status || exit 1"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-        deploy:
-            resources:
-                limits:
-                    cpus: '1.0'
-                    memory: 512M
-                reservations:
-                    cpus: '0.2'
-                    memory: 256M
 
     # Focus component
     jicofo:
@@ -248,24 +128,9 @@ services:
             - XMPP_RECORDER_DOMAIN=recorder.meet.jitsi
             - XMPP_SERVER=prosody
         depends_on:
-            prosody:
-                condition: service_healthy
+            - prosody
         networks:
-            meet.jitsi:
-        healthcheck:
-            test: ["CMD-SHELL", "curl -f http://localhost:8888/about/health || exit 1"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-        deploy:
-            resources:
-                limits:
-                    cpus: '0.5'
-                    memory: 512M
-                reservations:
-                    cpus: '0.1'
-                    memory: 256M
+            - meet.jitsi
 
     # Video bridge
     jvb:
@@ -293,24 +158,9 @@ services:
             - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
             - XMPP_SERVER=prosody
         depends_on:
-            prosody:
-                condition: service_healthy
+            - prosody
         networks:
-            meet.jitsi:
-        healthcheck:
-            test: ["CMD-SHELL", "curl -f http://localhost:8080/about/health || exit 1"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 60s
-        deploy:
-            resources:
-                limits:
-                    cpus: '2.0'
-                    memory: 2G
-                reservations:
-                    cpus: '0.5'
-                    memory: 1G
+            - meet.jitsi
 
     # Uptime Kuma monitoring
     uptime-kuma:
@@ -322,25 +172,9 @@ services:
         volumes:
             - uptime-kuma:/app/data
         networks:
-            meet.jitsi:
-        healthcheck:
-            test: ["CMD-SHELL", "curl -f http://localhost:3001 || exit 1"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 30s
-        deploy:
-            resources:
-                limits:
-                    cpus: '0.5'
-                    memory: 256M
-                reservations:
-                    cpus: '0.1'
-                    memory: 128M
+            - meet.jitsi
 
 volumes:
-    postgres_data:
-    redis_data:
     uptime-kuma:
 
 networks:
