@@ -181,13 +181,26 @@ cp .env.development .env
 # 生产环境
 cp .env.example .env
 
-# 编辑配置文件
+# 编辑配置文件，重点配置以下项目：
+# - PUBLIC_URL: 您的域名
+# - DOCKER_HOST_ADDRESS: 服务器IP地址
+# - LETSENCRYPT_EMAIL: Let's Encrypt证书申请邮箱
 vim .env
 ```
 
 **必须修改的配置项：**
 - `PUBLIC_URL`: 您的域名（如：https://meet.yourdomain.com）
 - `DOCKER_HOST_ADDRESS`: 服务器公网IP地址
+
+### 🎯 简化配置说明
+
+**一次配置，处处使用**：只需在 `.env` 文件中配置域名、IP和邮箱，后续所有操作都会自动读取这些配置，无需重复输入！
+
+- `./deploy.sh init` - 自动读取域名和IP配置
+- `./generate-ssl.sh` - 自动读取域名和邮箱配置
+- `./deploy.sh ssl` - 自动读取域名和邮箱配置
+
+这样可以避免在多个步骤中重复输入相同信息，提高部署效率。
 
 ### 4. 配置部署
 
@@ -204,19 +217,28 @@ chmod +x deploy.sh generate-ssl.sh health-check.sh maintenance.sh
 使用提供的脚本生成SSL证书：
 
 ```bash
-# 生成自签名证书（测试用）
-./generate-ssl.sh -d your-domain.com -t self-signed
+# 生成自签名证书（测试用）- 自动读取.env配置
+./generate-ssl.sh -t self-signed
 
-# 申请Let's Encrypt证书（生产环境推荐）
-./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt
+# 申请Let's Encrypt证书（生产环境推荐）- 自动读取.env配置
+./generate-ssl.sh -t letsencrypt
 
 # 检查证书有效性
-./generate-ssl.sh -d your-domain.com -c
+./generate-ssl.sh -c
 
 # 自动续期Let's Encrypt证书
-./generate-ssl.sh -d your-domain.com -e your-email@example.com -t letsencrypt -a
+./generate-ssl.sh -t letsencrypt -a
+```
 
-# 或者手动配置
+#### 手动指定参数（可选）
+
+如果需要覆盖.env文件中的配置：
+
+```bash
+# 手动指定域名和邮箱
+./generate-ssl.sh -d custom-domain.com -e custom@email.com -t letsencrypt
+
+# 使用传统certbot方式
 sudo certbot --nginx -d meet.yourdomain.com
 ```
 

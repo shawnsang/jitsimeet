@@ -191,8 +191,8 @@ show_help() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "  -d, --domain DOMAIN     Specify domain name (required)"
-    echo "  -e, --email EMAIL       Specify email address (required for Let's Encrypt)"
+    echo "  -d, --domain DOMAIN     Specify domain name (auto-read from .env if not provided)"
+    echo "  -e, --email EMAIL       Specify email address (auto-read from .env if not provided)"
     echo "  -t, --type TYPE         Certificate type: self-signed or letsencrypt (default: self-signed)"
     echo "  -s, --ssl-dir DIR       SSL certificate directory (default: ./ssl)"
     echo "  -f, --force             Force regenerate certificate"
@@ -202,20 +202,27 @@ show_help() {
     echo "  -i, --info              Show certificate information"
     echo "  -h, --help              Show this help message"
     echo ""
-    echo "Examples:"
-    echo "  # Generate self-signed certificate"
-    echo "  $0 -d your-domain.com -t self-signed"
+    echo "Auto-configuration:"
+    echo "  The script automatically reads domain and email from .env file:"
+    echo "  - Domain: PUBLIC_URL=your-domain.com"
+    echo "  - Email: LETSENCRYPT_EMAIL=your-email@example.com"
     echo ""
-    echo "  # Generate Let's Encrypt certificate"
-    echo "  $0 -d your-domain.com -e your-email@example.com -t letsencrypt"
+    echo "Examples:"
+    echo "  # Generate self-signed certificate (auto-read domain from .env)"
+    echo "  $0 -t self-signed"
+    echo ""
+    echo "  # Generate Let's Encrypt certificate (auto-read domain and email from .env)"
+    echo "  $0 -t letsencrypt"
+    echo ""
+    echo "  # Override .env settings with command line options"
+    echo "  $0 -d custom-domain.com -e custom@email.com -t letsencrypt"
     echo ""
     echo "  # Check certificate validity"
-    echo "  $0 -d your-domain.com -c"
-    echo ""
-    echo "  # Auto-renew Let's Encrypt certificate"
-    echo "  $0 -d your-domain.com -e your-email@example.com -t letsencrypt -a"
+    echo "  $0 -c"
     echo ""
     echo "Notes:"
+    echo "  - Configure PUBLIC_URL and LETSENCRYPT_EMAIL in .env file for automatic operation"
+    echo "  - Command line options override .env file settings"
     echo "  - Self-signed certificates are for testing only, browsers will show security warnings"
     echo "  - Let's Encrypt certificates require domain to be publicly accessible"
     echo "  - For production, use Let's Encrypt or purchase commercial certificates"
@@ -275,13 +282,37 @@ parse_arguments() {
     done
 }
 
+# 从.env文件读取配置
+load_env_config() {
+    if [[ -f ".env" ]]; then
+        # 读取域名配置
+        ENV_DOMAIN=$(grep "^PUBLIC_URL=" .env | cut -d'=' -f2 | tr -d '"')
+        ENV_EMAIL=$(grep "^LETSENCRYPT_EMAIL=" .env | cut -d'=' -f2 | tr -d '"')
+        
+        # 如果命令行没有指定域名，尝试使用.env中的配置
+        if [[ -z "$DOMAIN" ]] && [[ -n "$ENV_DOMAIN" ]] && [[ "$ENV_DOMAIN" != "your-domain.com" ]]; then
+            log_info "从.env文件读取到域名: $ENV_DOMAIN"
+            DOMAIN="$ENV_DOMAIN"
+        fi
+        
+        # 如果命令行没有指定邮箱，尝试使用.env中的配置
+        if [[ -z "$EMAIL" ]] && [[ -n "$ENV_EMAIL" ]] && [[ "$ENV_EMAIL" != "your-email@example.com" ]]; then
+            log_info "从.env文件读取到邮箱: $ENV_EMAIL"
+            EMAIL="$ENV_EMAIL"
+        fi
+    fi
+}
+
 # 主函数
 main() {
     parse_arguments "$@"
     
+    # 尝试从.env文件加载配置
+    load_env_config
+    
     # Validate required parameters
     if [[ -z "$DOMAIN" ]]; then
-        log_error "Domain is required. Use -d or --domain option."
+        log_error "Domain is required. Use -d or --domain option, or configure PUBLIC_URL in .env file."
         show_help
         exit 1
     fi

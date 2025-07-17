@@ -247,8 +247,40 @@ init_config() {
 configure_domain() {
     log_info "配置域名和IP地址..."
     
-    read -p "请输入您的域名 (例如: meet.yourdomain.com): " DOMAIN
-    read -p "请输入服务器公网IP地址: " SERVER_IP
+    # 从.env文件读取现有配置
+    CURRENT_DOMAIN=$(grep "^PUBLIC_URL=" .env | cut -d'=' -f2 | tr -d '"')
+    CURRENT_IP=$(grep "^DOCKER_HOST_ADDRESS=" .env | cut -d'=' -f2 | tr -d '"')
+    
+    # 如果.env中已有有效配置，询问是否使用
+    if [ -n "$CURRENT_DOMAIN" ] && [ "$CURRENT_DOMAIN" != "your-domain.com" ] && [ "$CURRENT_DOMAIN" != "localhost" ]; then
+        echo "检测到.env文件中的域名配置: $CURRENT_DOMAIN"
+        read -p "是否使用此域名? (y/n) [y]: " USE_CURRENT
+        USE_CURRENT=${USE_CURRENT:-y}
+        
+        if [ "$USE_CURRENT" = "y" ] || [ "$USE_CURRENT" = "Y" ]; then
+            DOMAIN="$CURRENT_DOMAIN"
+        fi
+    fi
+    
+    if [ -n "$CURRENT_IP" ] && [ "$CURRENT_IP" != "your-server-ip" ] && [ "$CURRENT_IP" != "127.0.0.1" ]; then
+        echo "检测到.env文件中的IP配置: $CURRENT_IP"
+        read -p "是否使用此IP地址? (y/n) [y]: " USE_CURRENT_IP
+        USE_CURRENT_IP=${USE_CURRENT_IP:-y}
+        
+        if [ "$USE_CURRENT_IP" = "y" ] || [ "$USE_CURRENT_IP" = "Y" ]; then
+            SERVER_IP="$CURRENT_IP"
+        fi
+    fi
+    
+    # 如果没有设置域名，提示输入
+    if [ -z "$DOMAIN" ]; then
+        read -p "请输入您的域名 (例如: meet.yourdomain.com): " DOMAIN
+    fi
+    
+    # 如果没有设置IP，提示输入
+    if [ -z "$SERVER_IP" ]; then
+        read -p "请输入服务器公网IP地址: " SERVER_IP
+    fi
     
     if [ -z "$DOMAIN" ] || [ -z "$SERVER_IP" ]; then
         log_error "域名和IP地址不能为空"
@@ -259,7 +291,7 @@ configure_domain() {
     sed -i "s|PUBLIC_URL=.*|PUBLIC_URL=$DOMAIN|g" .env
     sed -i "s/DOCKER_HOST_ADDRESS=.*/DOCKER_HOST_ADDRESS=$SERVER_IP/g" .env
     
-    log_success "域名和IP配置完成"
+    log_success "域名和IP配置完成: $DOMAIN -> $SERVER_IP"
     log_info "请确保DNS记录已正确配置，将 $DOMAIN 指向 $SERVER_IP"
 }
 
@@ -376,8 +408,40 @@ backup_config() {
 install_ssl() {
     log_info "安装 SSL 证书..."
     
-    read -p "请输入您的邮箱地址 (用于 Let's Encrypt): " EMAIL
-    read -p "请输入您的域名: " DOMAIN
+    # 从.env文件读取域名配置
+    CURRENT_DOMAIN=$(grep "^PUBLIC_URL=" .env | cut -d'=' -f2 | tr -d '"')
+    CURRENT_EMAIL=$(grep "^LETSENCRYPT_EMAIL=" .env | cut -d'=' -f2 | tr -d '"')
+    
+    # 使用.env中的域名或提示输入
+    if [ -n "$CURRENT_DOMAIN" ] && [ "$CURRENT_DOMAIN" != "your-domain.com" ]; then
+        echo "检测到.env文件中的域名: $CURRENT_DOMAIN"
+        read -p "是否使用此域名? (y/n) [y]: " USE_DOMAIN
+        USE_DOMAIN=${USE_DOMAIN:-y}
+        
+        if [ "$USE_DOMAIN" = "y" ] || [ "$USE_DOMAIN" = "Y" ]; then
+            DOMAIN="$CURRENT_DOMAIN"
+        fi
+    fi
+    
+    # 使用.env中的邮箱或提示输入
+    if [ -n "$CURRENT_EMAIL" ] && [ "$CURRENT_EMAIL" != "your-email@example.com" ]; then
+        echo "检测到.env文件中的邮箱: $CURRENT_EMAIL"
+        read -p "是否使用此邮箱? (y/n) [y]: " USE_EMAIL
+        USE_EMAIL=${USE_EMAIL:-y}
+        
+        if [ "$USE_EMAIL" = "y" ] || [ "$USE_EMAIL" = "Y" ]; then
+            EMAIL="$CURRENT_EMAIL"
+        fi
+    fi
+    
+    # 如果没有设置，提示输入
+    if [ -z "$EMAIL" ]; then
+        read -p "请输入您的邮箱地址 (用于 Let's Encrypt): " EMAIL
+    fi
+    
+    if [ -z "$DOMAIN" ]; then
+        read -p "请输入您的域名: " DOMAIN
+    fi
     
     if [ -z "$EMAIL" ] || [ -z "$DOMAIN" ]; then
         log_error "邮箱和域名不能为空"
