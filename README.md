@@ -179,9 +179,6 @@ cd /opt/jitsi-meet
 cp .env.development .env
 
 # 生产环境
-cp .env.production .env
-
-# 或使用默认模板
 cp .env.example .env
 
 # 编辑配置文件
@@ -196,7 +193,7 @@ vim .env
 
 ```bash
 # 给脚本添加执行权限
-chmod +x deploy.sh auto-restart.sh
+chmod +x deploy.sh generate-ssl.sh health-check.sh maintenance.sh
 
 # 初始化部署环境
 ./deploy.sh init
@@ -233,14 +230,17 @@ sudo certbot --nginx -d meet.yourdomain.com
 ./deploy.sh status
 ```
 
-### 7. 启动监控
+### 7. 监控和维护
 
 ```bash
-# 启动自动监控和重启服务
-./auto-restart.sh start
+# 检查服务健康状态
+./health-check.sh
 
-# 检查监控状态
-./auto-restart.sh status
+# 执行系统维护
+./maintenance.sh
+
+# 查看服务日志
+./deploy.sh logs
 ```
 
 ## Git 使用和文件管理
@@ -399,17 +399,17 @@ end
 - Docker 容器状态
 - 系统资源使用
 
-### 自动重启功能
+### 服务管理功能
 
 ```bash
-# 查看监控日志
-./auto-restart.sh logs
+# 查看服务日志
+./deploy.sh logs
 
 # 手动执行健康检查
-./auto-restart.sh check
+./health-check.sh
 
 # 手动重启服务
-./auto-restart.sh restart
+./deploy.sh restart
 ```
 
 ### 日常维护命令
@@ -670,7 +670,7 @@ ENABLE_RECORDING=1
 如遇到问题，请检查：
 
 1. 系统日志：`./deploy.sh logs`
-2. 监控状态：`./auto-restart.sh status`
+2. 健康状态：`./health-check.sh`
 3. 服务状态：`./deploy.sh status`
 4. 网络连接：`netstat -tulnp`
 
